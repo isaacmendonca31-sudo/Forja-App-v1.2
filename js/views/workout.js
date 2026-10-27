@@ -29,8 +29,9 @@ import {
   sessionStats, findRecords, previousBest, mergeBest, bestOf, recordKind, fmtDuration,
 } from '../summary.js';
 import { startRest, stopRest } from '../timer.js';
-import { pageHead, modal, confirmDialog, toast, banner } from '../ui.js';
-import { haptic, announce, pulse, motionOK, growBar } from '../feedback.js';
+import { pageHead, modal, confirmDialog, toast, banner, rankBadge } from '../ui.js';
+import { haptic, announce, pulse, motionOK, growBar, setAmbientRank } from '../feedback.js';
+import { gradeExercise, rankSession } from '../rank.js';
 
 const RECORD_TEXT = {
   carga: 'Nova carga máxima',
@@ -246,6 +247,8 @@ export function render({ params, navigate, rerender }) {
     item.sets.forEach((_, i) => rows.append(setRow(item, i, status, ref)));
     card.append(rows, status);
 
+    paintRankChip(item);
+
     // Ações do exercício
     card.append(h('div', { class: 'card-actions' },
       h('button', { type: 'button', class: 'btn small', onClick: () => { item.sets.push({ weight: '', reps: '', done: false }); persist(); repaintCard(item); updateProgress(); } }, icon('plus'), 'Série'),
@@ -273,6 +276,22 @@ export function render({ params, navigate, rerender }) {
       }, 'Pular exercício'));
     }
     return card;
+  }
+
+  /** Rank do exercício assim que todas as séries estão feitas (compara com o próprio histórico). */
+  function gradeItem(item) {
+    const done = item.sets.filter((x) => x.done).map((x) => ({ weight: Number(x.weight), reps: Number(x.reps) }));
+    return gradeExercise({ exerciseId: item.exerciseId, sets: done, planned: item.planned }, sessions);
+  }
+  function paintRankChip(item) {
+    const head = refs.get(item.key)?.head;
+    if (!head) return null;
+    head.querySelector('.rank-chip')?.remove();
+    if (item.skipped || !item.sets.length || !item.sets.every((x) => x.done)) return null;
+    const g = gradeItem(item);
+    if (!g) return null;
+    head.append(h('span', { class: 'rank-chip', title: g.reason }, rankBadge(g.rank)));
+    return g;
   }
 
   /** Recorde ao registrar uma série (só existe se já há histórico do exercício). */
@@ -313,7 +332,7 @@ export function render({ params, navigate, rerender }) {
       type: 'button', class: 'done-btn', 'aria-pressed': String(s.done),
       'aria-label': `Série ${i + 1}: ${s.done ? 'desmarcar' : 'marcar como feita'}`,
     }, icon('check'));
-    const row = h('div', { class: 'set-row' }, h('span', { class: 'set-n' }, String(i + 1)), w, r, btn);
+    const row = h('div', { class: `set-row${s.done ? ' done' : ''}` }, h('span', { class: 'set-n' }, String(i + 1)), w, r, btn);
     ref.rows.push({ row, w, r, btn });
 
     btn.addEventListener('click', () => {
@@ -325,7 +344,8 @@ export function render({ params, navigate, rerender }) {
         w.readOnly = false; r.readOnly = false;
         btn.setAttribute('aria-pressed', 'false');
         btn.setAttribute('aria-label', `Série ${i + 1}: marcar como feita`);
-        row.classList.remove('logged');
+        row.classList.remove('logged', 'done');
+        paintRankChip(item);
         persist(); updateProgress(); markCurrent();
         return;
       }
@@ -356,6 +376,7 @@ export function render({ params, navigate, rerender }) {
       btn.setAttribute('aria-label', `Série ${i + 1}: desmarcar`);
 
       // Feedback imediato
+      row.classList.add('done');
       haptic('done');
       pulse(btn, 'pop');
       pulse(row, 'logged');
@@ -380,6 +401,10 @@ export function render({ params, navigate, rerender }) {
         message += ` Descanso de ${fmtClock(secs)} iniciado.`;
       }
       persist(); updateProgress(); markCurrent();
+      if (exerciseDone) {
+        const g = paintRankChip(item);
+        if (g) message += ` Rank ${g.rank} em ${item.name}.`;
+      }
 
       // Avanço: próxima série do mesmo exercício ou próximo exercício pendente.
       const nextRow = ref.rows[item.sets.findIndex((x) => !x.done)];
@@ -562,6 +587,8 @@ export function render({ params, navigate, rerender }) {
   function showSummary(session) {
     const stats = sessionStats(session);
     const records = findRecords(session, getSessions());
+    const ranks = rankSession(session, getSessions(), (id) => getExercise(id)?.type === 'composto');
+    const overall = ranks.overall;
     const before = getSessions().find((x) => x.id !== session.id && x.dayId === session.dayId
       && (x.date < session.date || (x.date === session.date && x.startedAt < session.startedAt)));
     const beforeVolume = before ? sessionStats(before).volume : 0;
@@ -572,7 +599,9 @@ export function render({ params, navigate, rerender }) {
     const stat = (value, label) => h('div', { class: 'stat' }, h('div', { class: 'v' }, value), h('div', { class: 'k' }, label));
     const body = h('div', { class: 'stack' },
       h('div', { class: 'summary-hero' },
-        h('span', { class: 'badge-ring', 'aria-hidden': 'true' }, icon('check')),
+        overall
+          ? h('div', { class: 'rank-hero' }, h('span', { class: 'kicker' }, 'Rank do treino'), rankBadge(overall.rank, { large: true }))
+          : h('span', { class: 'badge-ring', 'aria-hidden': 'true' }, icon('check')),
         h('p', { class: 'muted' }, `${session.title} · ${fmtDateShort(session.date)}`)),
       h('div', { class: 'summary-grid' },
         stat(fmtDuration(stats.minutes), 'duração'),
@@ -581,6 +610,14 @@ export function render({ params, navigate, rerender }) {
         stat(String(stats.exercises), 'exercícios')),
       diff === null ? null : h('p', { class: 'muted small' },
         `Volume ${diff >= 0 ? '▲ +' : '▼ −'}${fmtNum(Math.abs(diff), 1)}% em relação ao treino anterior (${fmtDateShort(before.date)}).`),
+      ranks.items.length
+        ? h('div', { class: 'stack' },
+          h('h3', {}, 'Nota por exercício'),
+          h('ul', { class: 'rank-list' }, ranks.items.map((x) => h('li', {},
+            rankBadge(x.grade.rank),
+            h('span', { class: 'grow' }, h('strong', {}, x.name), h('small', {}, x.grade.reason))))),
+          h('p', { class: 'hint' }, 'Cada exercício é comparado com o seu próprio histórico. Manter o desempenho já é uma boa nota; o rank é só informação e não altera a ficha.'))
+        : null,
       records.length
         ? h('div', { class: 'stack' },
           h('h3', {}, records.length === 1 ? '1 recorde' : `${records.length} recordes`),
@@ -590,8 +627,9 @@ export function render({ params, navigate, rerender }) {
               h('small', {}, `${RECORD_TEXT[rc.kind]}: ${fmtNum(rc.value)} ${rc.kind === 'reps' ? 'reps' : 'kg'} (antes: ${fmtNum(rc.previous)})`))))))
         : h('p', { class: 'hint' }, 'Sem recordes desta vez — consistência também é progresso.'));
 
+    setAmbientRank(overall?.rank ?? null);
     haptic(records.length ? 'record' : 'finish');
-    announce(`Treino concluído em ${fmtDuration(stats.minutes)}. Volume ${fmtNum(stats.volume, 0)} quilos, ${stats.sets} séries${records.length ? `, ${records.length} recorde${records.length > 1 ? 's' : ''}` : ''}.`);
+    announce(`${overall ? `Rank ${overall.rank}. ` : ''}Treino concluído em ${fmtDuration(stats.minutes)}. Volume ${fmtNum(stats.volume, 0)} quilos, ${stats.sets} séries${records.length ? `, ${records.length} recorde${records.length > 1 ? 's' : ''}` : ''}.`);
     modal({
       title: 'Treino concluído!',
       body,
@@ -641,7 +679,7 @@ export function render({ params, navigate, rerender }) {
   // ───── Montagem ─────
   const list = h('div', { class: 'stack' });
   const finishBtn = h('button', { type: 'button', class: 'btn primary block cta', onClick: finish }, icon('check'), 'Finalizar treino');
-  const root = h('div', { class: 'view' },
+  const root = h('div', { class: 'view workout' },
     pageHead(day.title, { subtitle: `${day.name} · rascunho salvo automaticamente`, back: '#/' }),
     h('div', { class: 'stack' },
       h('div', { class: 'row between' },

@@ -7,13 +7,15 @@
  *   3. o ritmo da semana (secundário);
  *   4. os demais treinos da divisão, para quem quiser trocar de dia.
  */
-import { h, icon, fmtDateLong, fmtDateShort, weekStartISO, isoDate, parseISODate } from '../utils.js';
+import { h, icon, fmtNum, fmtDateLong, fmtDateShort, weekStartISO, isoDate, parseISODate } from '../utils.js';
 import {
   getPlan, getSessions, getExercise, getSettings, loadDraft, clearDraft, getUiFlag, setUiFlag,
 } from '../store.js';
 import { GROUPS } from '../data/library.js';
-import { pageHead, confirmDialog, toast } from '../ui.js';
+import { pageHead, confirmDialog, toast, rankBadge } from '../ui.js';
+import { rankSession } from '../rank.js';
 import { growBar, announce } from '../feedback.js';
+import { sessionStats, findRecords, fmtDuration } from '../summary.js';
 
 /** Resumo dos grupos musculares do dia (ex.: "Peito, Costas"). */
 function groupsOf(day) {
@@ -89,6 +91,7 @@ export function render({ rerender }) {
     const shown = names.slice(0, 4);
     root.append(h('section', { class: 'card hero', 'aria-labelledby': 'hoje-titulo' },
       h('div', { class: 'hero-top' },
+        h('span', { class: 'kicker' }, doneToday ? 'Treino de hoje' : 'Próximo treino'),
         h('span', { class: 'tag accent' }, 'Hoje'),
         doneToday ? h('span', { class: 'tag ok' }, '✓ Concluído') : null),
       h('h2', { id: 'hoje-titulo' }, todayDay.title),
@@ -103,7 +106,7 @@ export function render({ rerender }) {
   } else {
     const next = plan.days.find((d) => d.weekday > dow) ?? plan.days[0];
     root.append(h('section', { class: 'card hero', 'aria-labelledby': 'hoje-titulo' },
-      h('div', { class: 'hero-top' }, h('span', { class: 'tag' }, 'Hoje')),
+      h('div', { class: 'hero-top' }, h('span', { class: 'kicker' }, 'Descanso'), h('span', { class: 'tag' }, 'Hoje')),
       h('h2', { id: 'hoje-titulo' }, 'Dia de descanso'),
       h('p', { class: 'hero-meta' }, 'A recuperação também faz parte da hipertrofia. Se quiser, dá para adiantar o próximo treino.'),
       next ? h('a', { class: 'btn primary block cta', href: `#/treino/${next.id}` },
@@ -172,6 +175,23 @@ export function render({ rerender }) {
       ? 'Semana completa. Bom trabalho!'
       : 'Toque em um dia para abrir o treino planejado.')));
   growBar(weekFill, planned ? (doneCount / planned) * 100 : 0);
+
+  // ───── Resumo do último treino ─────
+  const lastSession = sessions[0];
+  if (lastSession) {
+    const st = sessionStats(lastSession);
+    const recs = findRecords(lastSession, sessions);
+    const lastRank = rankSession(lastSession, sessions, (id) => getExercise(id)?.type === 'composto').overall;
+    root.append(h('a', { class: 'card last-workout', href: `#/historico/${lastSession.id}`, 'aria-label': `Último treino: ${lastSession.title}, ${fmtDateShort(lastSession.date)}. Abrir detalhes.` },
+      h('div', { class: 'row between' },
+        h('div', {}, h('span', { class: 'kicker' }, 'Último treino'), h('h2', {}, lastSession.title)),
+        h('div', { class: 'row' }, lastRank ? rankBadge(lastRank.rank) : null, h('span', { class: 'muted small' }, fmtDateShort(lastSession.date)))),
+      h('div', { class: 'mini-stats' },
+        h('div', { class: 'stat' }, h('div', { class: 'v' }, `${fmtNum(st.volume, 0)} kg`), h('div', { class: 'k' }, 'volume')),
+        h('div', { class: 'stat' }, h('div', { class: 'v' }, String(st.sets)), h('div', { class: 'k' }, 'séries')),
+        h('div', { class: 'stat' }, h('div', { class: 'v' }, fmtDuration(st.minutes)), h('div', { class: 'k' }, 'duração'))),
+      recs.length ? h('p', { class: 'small' }, h('span', { class: 'pr-badge' }, icon('trophy'), recs.length === 1 ? '1 recorde' : `${recs.length} recordes`)) : null));
+  }
 
   // ───── 4. Outros treinos ─────
   root.append(h('div', { class: 'section-title' }, h('h2', {}, 'Divisão semanal')));

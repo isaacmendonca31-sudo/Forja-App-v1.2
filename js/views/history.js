@@ -3,12 +3,13 @@
  * em relação à sessão anterior do mesmo exercício.
  */
 import { h, icon, fmtNum, fmtDateFull, fmtDateShort, parseISODate } from '../utils.js';
-import { getSessions, getSession, deleteSession, restoreSession, isDemoSession } from '../store.js';
+import { getSessions, getSession, getExercise, deleteSession, restoreSession, isDemoSession } from '../store.js';
 import { exerciseHistory } from '../suggest.js';
 import { GROUPS } from '../data/library.js';
-import { pageHead, emptyBlock, toast } from '../ui.js';
+import { pageHead, emptyBlock, toast, rankBadge } from '../ui.js';
+import { rankSession } from '../rank.js';
 import { findRecords } from '../summary.js';
-import { announce, haptic } from '../feedback.js';
+import { announce, haptic, setAmbientRank } from '../feedback.js';
 
 const volumeOf = (session) => session.items.reduce(
   (acc, it) => acc + it.sets.reduce((a, s) => a + s.weight * s.reps, 0), 0);
@@ -74,8 +75,20 @@ function renderDetail(id, navigate) {
   const all = getSessions();
   const minutes = session.endedAt > session.startedAt ? Math.round((session.endedAt - session.startedAt) / 60000) : 0;
 
+  const ranks = rankSession(session, all, (id) => getExercise(id)?.type === 'composto');
+  const rankOf = new Map(ranks.items.map((x) => [x.exerciseId, x.grade]));
+  setAmbientRank(ranks.overall?.rank ?? null); // a iluminação do fundo acompanha o rank deste treino
+
   const root = h('div', { class: 'view' },
     pageHead(session.title, { subtitle: fmtDateFull(session.date), back: '#/historico' }),
+    ranks.overall
+      ? h('div', { class: 'card rank-summary' },
+        h('div', { class: 'row between' },
+          h('div', {}, h('span', { class: 'kicker' }, 'Rank do treino'),
+            h('p', { class: 'muted small' }, ranks.overall.via === 'quantidade'
+              ? 'Várias notas altas elevaram o resultado.' : 'Média ponderada das notas dos exercícios.')),
+          rankBadge(ranks.overall.rank, { large: true })))
+      : null,
     isDemoSession(session)
       ? h('div', { class: 'banner warn' }, h('strong', {}, 'Treino de teste'),
         h('p', { class: 'muted small' }, 'Dado simulado do modo desenvolvedor. Não faz parte do seu histórico real, não entra no backup e some ao desligar o modo de teste.'))
@@ -100,7 +113,7 @@ function renderDetail(id, navigate) {
     const prev = idx > 0 ? hist[idx - 1] : null;
 
     const card = h('section', { class: 'card', 'aria-label': it.name },
-      h('div', { class: 'card-head' }, h('h2', {}, it.name), h('span', { class: 'tag' }, GROUPS[it.group] ?? '')),
+      h('div', { class: 'card-head' }, h('h2', {}, it.name), rankOf.has(it.exerciseId) ? rankBadge(rankOf.get(it.exerciseId).rank) : null, h('span', { class: 'tag' }, GROUPS[it.group] ?? '')),
       h('ol', { class: 'stack' }, it.sets.map((s, i) => h('li', { class: 'row between' },
         h('span', { class: 'muted' }, `Série ${i + 1}`),
         h('strong', {}, `${fmtNum(s.weight)} kg × ${s.reps}`)))));
@@ -114,6 +127,7 @@ function renderDetail(id, navigate) {
     } else {
       card.append(h('p', { class: 'hint' }, 'Primeiro registro deste exercício.'));
     }
+    if (rankOf.has(it.exerciseId)) card.append(h('p', { class: 'hint' }, rankOf.get(it.exerciseId).reason));
     if (it.note) card.append(h('p', {}, h('span', { class: 'muted' }, 'Obs.: '), it.note));
     root.append(card);
   }

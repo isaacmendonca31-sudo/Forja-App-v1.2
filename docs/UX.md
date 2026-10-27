@@ -18,6 +18,12 @@
 - **Evolução interativa:** filtros de 30 dias, 90 dias e histórico completo; alternância entre volume e frequência nas últimas oito semanas; grupos por séries concluídas e exercícios por volume (ou séries quando não há carga registrada).
 - **Compatibilidade:** converter registros locais da versão monolítica uma vez, sem apagar a origem; aceitar também backups JSON antigos em Ajustes.
 
+## 1.3.0 — vidro fumê e ranks
+- **Painéis:** vidro translúcido (blur 16 px) só nos contêineres principais (cartões, cabeçalho, navegação, diálogos, cronômetro); listas internas e a tela de treino usam fundos opacos para leitura e desempenho.
+- **Fundo animado:** duas manchas de luz verde (gradiente radial) movidas por `transform` em 46 s e 58 s, `contain: strict`, atrás de tudo (`aria-hidden`). Parado com `prefers-reduced-motion`; painéis sólidos com `prefers-reduced-transparency`, `prefers-contrast: more` ou sem suporte a `backdrop-filter`.
+- **Treino:** campos de 54 px e fonte 1,25 rem, linha da série concluída com fundo/borda verdes, chip de rank ao concluir o exercício.
+- **Ranks:** ver `RANK.md`. O selo SSS anima só o gradiente (7 s) e fica estático com movimento reduzido.
+
 ## 1.2.0 — fluxo, feedback e movimento
 - **Início:** treino de hoje em destaque (exercícios, séries, ~minutos, um botão); semana e divisão ficam abaixo. Dia de descanso oferece "Adiantar" o próximo treino.
 - **Registro:** carga da série seguinte = a da série anterior do treino; repetições = as da última sessão. Próxima série com borda verde; ao fechar um exercício a tela rola ao próximo. Não abrimos o teclado automaticamente (evita cobrir cronômetro e séries).

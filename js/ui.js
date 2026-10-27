@@ -120,3 +120,8 @@ export function emptyBlock({ iconName = 'dumbbell', title, text, actions = [] })
 export function banner(kind, ...children) {
   return h('div', { class: `banner ${kind}`.trim() }, ...children);
 }
+
+/** Selo de rank (C/B/A/S/SSS). A letra e o rótulo acessível não dependem da cor. */
+export function rankBadge(rank, { large = false } = {}) {
+  return h('span', { class: `rank rank-${rank}${large ? ' large' : ''}`, role: 'img', 'aria-label': `Rank ${rank}` }, rank);
+}

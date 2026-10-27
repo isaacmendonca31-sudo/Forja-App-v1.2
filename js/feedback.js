@@ -54,3 +54,12 @@ export function growBar(fill, pct) {
   fill.style.setProperty('--pct', '0%');
   requestAnimationFrame(() => requestAnimationFrame(() => fill.style.setProperty('--pct', `${pct}%`)));
 }
+
+/**
+ * Muda suavemente a iluminação do fundo conforme o rank (C/B/A/S/SSS) ou a remove (null).
+ * É só decoração (o fundo é aria-hidden); a transição de cor é feita em CSS e some com
+ * prefers-reduced-motion (a cor muda sem animar).
+ */
+export function setAmbientRank(rank) {
+  if (rank) document.body.dataset.rank = rank; else delete document.body.dataset.rank;
+}

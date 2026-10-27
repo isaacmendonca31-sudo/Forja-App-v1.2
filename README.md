@@ -2,6 +2,13 @@
 
 App de registro e acompanhamento de treinos de musculação (hipertrofia): ficha editável, registro série a série, cronômetro de descanso, histórico, evolução, biblioteca de exercícios, backup e sincronização opcional (Supabase). HTML + CSS + JavaScript puro, **sem dependências**, funciona offline e é instalável no Android.
 
+## Novidades da 1.3.0 (vidro fumê + ranks)
+- **Redesign Glassmorphism:** fundo preto/grafite com painéis de vidro fumê (translúcidos, blur moderado, reflexo verde discreto na borda), botões principais verdes sólidos e secundários em grafite. A tela de treino usa painéis mais opacos e sem blur, com campos grandes e séries concluídas em verde.
+- **Fundo de luz animado:** manchas verdes difusas movidas lentamente por CSS (`transform` apenas, sem vídeo/GIF/JS), atrás de todo o conteúdo. `prefers-reduced-motion` o deixa parado; `prefers-reduced-transparency` e navegadores sem `backdrop-filter` recebem painéis sólidos.
+- **Dashboard:** próximo treino em destaque com botão de iniciar, progresso semanal e resumo do último treino (com rank).
+- **Evolução:** gráfico com área sob a linha e melhor marca destacada; seção "Recordes de carga".
+- **Ranks C / B / A / S / SSS** por exercício e por treino (veja `docs/RANK.md`). O rank final aparece no resumo, no histórico e colore suavemente a iluminação do fundo.
+
 ## Novidades da 1.2.0 (fluxo, feedback e dados de teste)
 - **Início focado no treino de hoje:** exercícios do dia, duração estimada e um botão grande; o ritmo semanal fica em segundo plano. Primeira abertura mostra 3 passos curtos (dispensável).
 - **Registro rápido de séries:** ✓ usa a sugestão da última sessão; a carga da série seguinte acompanha a que você acabou de usar; a próxima série é destacada e a tela avança para o próximo exercício.
@@ -53,6 +60,7 @@ js/store.js           armazenamento local, registros, lápides
 js/validate.js        saneamento (allow-list) de todo dado externo
 js/suggest.js         progressão, estagnação, trocas, "máquina ocupada" (funções puras)
 js/summary.js         resumo do treino e recordes (funções puras)
+js/rank.js            ranks C/B/A/S/SSS por exercício e treino (funções puras)
 js/demo.js            gerador de histórico simulado (puro; armazenamento isolado em store.js)
 js/feedback.js        vibração, anúncios para leitores de tela, animações curtas
 scripts/analyze.py    análise em Python (relatório, CSV e gráficos), offline

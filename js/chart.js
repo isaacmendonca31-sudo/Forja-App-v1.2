@@ -53,17 +53,22 @@ export function lineChart(points, { ariaLabel, unit = '' } = {}) {
     }, points[i].label));
   });
 
-  // Linha
+  // Área sob a linha (leitura de tendência) e linha
+  if (points.length > 1) {
+    const pts = points.map((p, i) => `${x(i).toFixed(1)},${y(p.value).toFixed(1)}`);
+    svg.append(svgEl('polygon', { class: 'area', points: `${x(0).toFixed(1)},${(M.t + innerH).toFixed(1)} ${pts.join(' ')} ${x(points.length - 1).toFixed(1)},${(M.t + innerH).toFixed(1)}` }));
+  }
   if (points.length > 1) {
     svg.append(svgEl('polyline', {
       class: 'line', pathLength: 1, points: points.map((p, i) => `${x(i).toFixed(1)},${y(p.value).toFixed(1)}`).join(' '),
     }));
   }
   // Pontos (com <title> = dica ao passar o dedo/mouse)
+  const bestIdx = points.length > 2 ? vals.indexOf(Math.max(...vals)) : -1; // destaca o melhor ponto (recorde)
   points.forEach((p, i) => {
     svg.append(svgEl('circle', {
-      class: `dot${i === points.length - 1 ? ' last' : ''}`, cx: x(i), cy: y(p.value), r: 4,
-    }, svgEl('title', {}, `${p.label}: ${fmtNum(p.value)}${unit ? ` ${unit}` : ''}`)));
+      class: `dot${i === points.length - 1 ? ' last' : ''}${i === bestIdx ? ' best' : ''}`, cx: x(i), cy: y(p.value), r: 4,
+    }, svgEl('title', {}, `${p.label}: ${fmtNum(p.value)}${unit ? ` ${unit}` : ''}${i === bestIdx ? ' (melhor marca)' : ''}`)));
   });
   return svg;
 }

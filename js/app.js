@@ -11,7 +11,7 @@ import { initTimer } from './timer.js';
 import { startAutoSync, onSyncChange, getSyncInfo } from './sync.js';
 import { toast } from './ui.js';
 import { h } from './utils.js';
-import { announce } from './feedback.js';
+import { announce, setAmbientRank } from './feedback.js';
 import { isId } from './validate.js';
 import { initInstall, installApp, getInstallState, onInstallStateChange } from './install.js';
 
@@ -89,6 +89,7 @@ function mount() {
   const found = match(path) || match('/');
 
   current?.handle?.destroy?.();
+  setAmbientRank(null); // telas que exibem um rank (resumo/histórico) o reativam ao montar
   const ctx = { params: found.params, navigate, rerender: mount };
   const handle = found.view.render(ctx);
   current = { ...found, handle };

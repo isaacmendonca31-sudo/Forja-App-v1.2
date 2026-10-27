@@ -92,6 +92,7 @@ function insightsPanel(sessions) {
   const trend = h('div', { class: 'insight-note', role: 'status' });
   const muscles = h('div', { class: 'insight-groups' });
   const top = h('div', { class: 'insight-top' });
+  const records = h('div', { class: 'record-board' });
 
   root.append(
     h('div', { class: 'insight-heading' },
@@ -106,6 +107,7 @@ function insightsPanel(sessions) {
     trend,
     h('div', { class: 'insight-section' }, h('div', { class: 'section-title' }, h('h3', {}, 'Grupos mais treinados')), muscles),
     h('div', { class: 'insight-section' }, h('div', { class: 'section-title' }, h('h3', {}, 'Exercícios em destaque')), top),
+    h('div', { class: 'insight-section' }, h('div', { class: 'section-title' }, h('h3', {}, 'Recordes de carga')), records),
     h('p', { class: 'hint' }, 'Volume = carga × repetições. Exercícios sem carga externa contam nas séries, mas não no volume em kg.'),
   );
 
@@ -149,12 +151,23 @@ function insightsPanel(sessions) {
         h('strong', { class: 'insight-bar-value' }, `${item.sets} séries`)))
       : [h('p', { class: 'muted small' }, 'Os grupos aparecem quando há séries com carga e repetições registradas.') ]));
 
+    paintRecords(data);
+
     const hasLoadedExercises = data.topExercises.some((item) => item.volume > 0);
     top.replaceChildren(...(data.topExercises.length
       ? data.topExercises.map((item) => h('a', { class: 'insight-exercise', href: `#/evolucao/${item.id}` },
         h('span', {}, h('strong', {}, item.name), h('small', {}, `${item.sets} séries no período`)),
         h('strong', { class: 'insight-bar-value' }, hasLoadedExercises ? `${fmtNum(item.volume, 0)} kg` : `${item.sets} séries`)))
       : [h('p', { class: 'muted small' }, 'Registre séries com carga para destacar exercícios por volume.') ]));
+  }
+
+  function paintRecords(data) {
+    records.replaceChildren(...(data.records.length
+      ? data.records.map((item) => h('a', { class: 'record-item', href: `#/evolucao/${item.id}` },
+        icon('trophy'),
+        h('span', { class: 'grow' }, h('strong', {}, item.name), h('small', {}, 'maior carga registrada')),
+        h('strong', {}, `${fmtNum(item.bestWeight)} kg`)))
+      : [h('p', { class: 'muted small' }, 'Os recordes aparecem quando há séries com carga registrada.')]));
   }
 
   function paintChart(data) {
