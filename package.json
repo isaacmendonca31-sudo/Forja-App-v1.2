@@ -1,0 +1,18 @@
+{
+  "name": "forja",
+  "version": "1.2.0",
+  "private": true,
+  "description": "FORJA — diário de treino (PWA offline-first) para hipertrofia.",
+  "type": "module",
+  "scripts": {
+    "start": "python3 -m http.server 8080",
+    "test": "node --test tests/*.test.mjs",
+    "check": "node scripts/check-precache.mjs && node --test tests/*.test.mjs && npm run test:py",
+    "icons": "python3 scripts/make-icons.py",
+    "test:py": "python3 -I -m unittest discover -s tests -p 'test_*.py'",
+    "analyze": "python3 scripts/analyze.py"
+  },
+  "engines": {
+    "node": ">=20"
+  }
+}
